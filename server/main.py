@@ -3,7 +3,7 @@
 Do not hand-edit unless you're willing to take ownership — the next
 compose run will overwrite this file.
 
-AURACLE_EMIT_VERSION:iter23 — see compose.py _is_stale_compose for the
+AURACLE_EMIT_VERSION:iter24 — see compose.py _is_stale_compose for the
 short-circuit-bypass marker. Bump when emit_server's contract changes
 in a way that requires already-composed product repos to be re-emitted.
 """
@@ -122,12 +122,6 @@ ROUTES: list[dict] = [
         "args": {},
         "postprocess": "to_int"
       },
-      "MEMORY_ENTRIES[]": {
-        "adapter": "static_value",
-        "args": {
-          "value": None
-        }
-      },
       "NEW_SKILLS[].id": {
         "adapter": "static_value",
         "args": {
@@ -146,23 +140,15 @@ ROUTES: list[dict] = [
           "value": None
         }
       },
-      "AGENTS[].id": {
-        "adapter": "static_value",
-        "args": {
-          "value": None
-        }
-      },
       "INFLIGHT": {
-        "adapter": "static_value",
+        "adapter": "bq_inflight_steps",
         "args": {
-          "value": None
+          "limit": 20
         }
       },
       "PROJECTS": {
-        "adapter": "static_value",
-        "args": {
-          "value": None
-        }
+        "adapter": "project_registry_list",
+        "args": {}
       },
       "TOPICS[]": {
         "adapter": "static_value",
@@ -177,21 +163,23 @@ ROUTES: list[dict] = [
         }
       },
       "EVENTS": {
-        "adapter": "static_value",
+        "adapter": "cockpit_events",
         "args": {
-          "value": None
+          "limit": 50
         }
       },
       "MEMORY": {
-        "adapter": "static_value",
+        "adapter": "memory_bank_recall",
         "args": {
-          "value": None
+          "scope": "",
+          "limit": 20
         }
       },
       "RETROS": {
-        "adapter": "static_value",
+        "adapter": "memory_bank_recall",
         "args": {
-          "value": None
+          "scope": "",
+          "limit": 20
         }
       },
       "SKILLS": {
@@ -207,9 +195,10 @@ ROUTES: list[dict] = [
         }
       },
       "CHAT": {
-        "adapter": "static_value",
+        "adapter": "memory_bank_recall",
         "args": {
-          "value": None
+          "scope": "",
+          "limit": 20
         }
       },
       "NOW": {
@@ -217,6 +206,17 @@ ROUTES: list[dict] = [
         "args": {
           "value": None
         }
+      },
+      "MEMORY_ENTRIES": {
+        "adapter": "memory_bank_recall",
+        "args": {
+          "scope": "",
+          "limit": 20
+        }
+      },
+      "AGENTS": {
+        "adapter": "cockpit_agents",
+        "args": {}
       }
     },
     "helpers": {
@@ -320,12 +320,6 @@ MOCK_BINDINGS: dict = {
       "args": {},
       "postprocess": "to_int"
     },
-    "MEMORY_ENTRIES[]": {
-      "adapter": "static_value",
-      "args": {
-        "value": None
-      }
-    },
     "NEW_SKILLS[].id": {
       "adapter": "static_value",
       "args": {
@@ -344,23 +338,15 @@ MOCK_BINDINGS: dict = {
         "value": None
       }
     },
-    "AGENTS[].id": {
-      "adapter": "static_value",
-      "args": {
-        "value": None
-      }
-    },
     "INFLIGHT": {
-      "adapter": "static_value",
+      "adapter": "bq_inflight_steps",
       "args": {
-        "value": None
+        "limit": 20
       }
     },
     "PROJECTS": {
-      "adapter": "static_value",
-      "args": {
-        "value": None
-      }
+      "adapter": "project_registry_list",
+      "args": {}
     },
     "TOPICS[]": {
       "adapter": "static_value",
@@ -375,21 +361,23 @@ MOCK_BINDINGS: dict = {
       }
     },
     "EVENTS": {
-      "adapter": "static_value",
+      "adapter": "cockpit_events",
       "args": {
-        "value": None
+        "limit": 50
       }
     },
     "MEMORY": {
-      "adapter": "static_value",
+      "adapter": "memory_bank_recall",
       "args": {
-        "value": None
+        "scope": "",
+        "limit": 20
       }
     },
     "RETROS": {
-      "adapter": "static_value",
+      "adapter": "memory_bank_recall",
       "args": {
-        "value": None
+        "scope": "",
+        "limit": 20
       }
     },
     "SKILLS": {
@@ -405,9 +393,10 @@ MOCK_BINDINGS: dict = {
       }
     },
     "CHAT": {
-      "adapter": "static_value",
+      "adapter": "memory_bank_recall",
       "args": {
-        "value": None
+        "scope": "",
+        "limit": 20
       }
     },
     "NOW": {
@@ -415,6 +404,17 @@ MOCK_BINDINGS: dict = {
       "args": {
         "value": None
       }
+    },
+    "MEMORY_ENTRIES": {
+      "adapter": "memory_bank_recall",
+      "args": {
+        "scope": "",
+        "limit": 20
+      }
+    },
+    "AGENTS": {
+      "adapter": "cockpit_agents",
+      "args": {}
     }
   },
   "helpers": {
