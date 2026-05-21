@@ -2,6 +2,10 @@
 
 Do not hand-edit unless you're willing to take ownership — the next
 compose run will overwrite this file.
+
+AURACLE_EMIT_VERSION:iter21 — see compose.py _is_stale_compose for the
+short-circuit-bypass marker. Bump when emit_server's contract changes
+in a way that requires already-composed product repos to be re-emitted.
 """
 from __future__ import annotations
 
@@ -216,9 +220,9 @@ ROUTES: list[dict] = [
       }
     },
     "helpers": {
+      "makeEvent": "const makeEvent = (i) => {\n    const t = EVT_TEMPLATES[i % EVT_TEMPLATES.length];\n    return {\n      id: 'evt_' + (NOW - i * 1234).toString(36),\n      ts: NOW - i * (12 + (i * 7) % 40) * SEC,\n      topic: t.topic,\n      skill: t.skill,\n      stepId: 'stp_' + (0xb000 + i * 41).toString(16),\n      status: t.status,\n    };\n  }",
       "fmtTime": "const fmtTime = (ts) => {\n    const d = new Date(ts);\n    const hh = String(d.getHours()).padStart(2, '0');\n    const mm = String(d.getMinutes()).padStart(2, '0');\n    const ss = String(d.getSeconds()).padStart(2, '0');\n    return hh + ':' + mm + ':' + ss;\n  }",
-      "fmtRel": "const fmtRel = (ts) => {\n    const d = NOW - ts;\n    if (d < 60 * SEC) return Math.max(1, Math.round(d / SEC)) + 's ago';\n    if (d < 60 * MIN) return Math.round(d / MIN) + 'm ago';\n    if (d < 24 * HR)  return Math.round(d / HR) + 'h ago';\n    return Math.round(d / DAY) + 'd ago';\n  }",
-      "makeEvent": "const makeEvent = (i) => {\n    const t = EVT_TEMPLATES[i % EVT_TEMPLATES.length];\n    return {\n      id: 'evt_' + (NOW - i * 1234).toString(36),\n      ts: NOW - i * (12 + (i * 7) % 40) * SEC,\n      topic: t.topic,\n      skill: t.skill,\n      stepId: 'stp_' + (0xb000 + i * 41).toString(16),\n      status: t.status,\n    };\n  }"
+      "fmtRel": "const fmtRel = (ts) => {\n    const d = NOW - ts;\n    if (d < 60 * SEC) return Math.max(1, Math.round(d / SEC)) + 's ago';\n    if (d < 60 * MIN) return Math.round(d / MIN) + 'm ago';\n    if (d < 24 * HR)  return Math.round(d / HR) + 'h ago';\n    return Math.round(d / DAY) + 'd ago';\n  }"
     }
   }
 ]
@@ -414,9 +418,9 @@ MOCK_BINDINGS: dict = {
     }
   },
   "helpers": {
+    "makeEvent": "const makeEvent = (i) => {\n    const t = EVT_TEMPLATES[i % EVT_TEMPLATES.length];\n    return {\n      id: 'evt_' + (NOW - i * 1234).toString(36),\n      ts: NOW - i * (12 + (i * 7) % 40) * SEC,\n      topic: t.topic,\n      skill: t.skill,\n      stepId: 'stp_' + (0xb000 + i * 41).toString(16),\n      status: t.status,\n    };\n  }",
     "fmtTime": "const fmtTime = (ts) => {\n    const d = new Date(ts);\n    const hh = String(d.getHours()).padStart(2, '0');\n    const mm = String(d.getMinutes()).padStart(2, '0');\n    const ss = String(d.getSeconds()).padStart(2, '0');\n    return hh + ':' + mm + ':' + ss;\n  }",
-    "fmtRel": "const fmtRel = (ts) => {\n    const d = NOW - ts;\n    if (d < 60 * SEC) return Math.max(1, Math.round(d / SEC)) + 's ago';\n    if (d < 60 * MIN) return Math.round(d / MIN) + 'm ago';\n    if (d < 24 * HR)  return Math.round(d / HR) + 'h ago';\n    return Math.round(d / DAY) + 'd ago';\n  }",
-    "makeEvent": "const makeEvent = (i) => {\n    const t = EVT_TEMPLATES[i % EVT_TEMPLATES.length];\n    return {\n      id: 'evt_' + (NOW - i * 1234).toString(36),\n      ts: NOW - i * (12 + (i * 7) % 40) * SEC,\n      topic: t.topic,\n      skill: t.skill,\n      stepId: 'stp_' + (0xb000 + i * 41).toString(16),\n      status: t.status,\n    };\n  }"
+    "fmtRel": "const fmtRel = (ts) => {\n    const d = NOW - ts;\n    if (d < 60 * SEC) return Math.max(1, Math.round(d / SEC)) + 's ago';\n    if (d < 60 * MIN) return Math.round(d / MIN) + 'm ago';\n    if (d < 24 * HR)  return Math.round(d / HR) + 'h ago';\n    return Math.round(d / DAY) + 'd ago';\n  }"
   }
 }
 
@@ -516,9 +520,22 @@ _MIME = {
 
 
 async def _build_mock_js() -> web.Response:
-    """Build window.MOCK JS dynamically from leaf adapter calls."""
+    """Build window.MOCK JS dynamically by overlaying live adapter results
+    on top of the original mock-data.js fixtures.
+
+    The original mock-data.js (copied verbatim from the templates into
+    STATIC_DIR at compose time) defines window.MOCK with rich fixtures
+    for every consumer key — AGENTS, EVENTS, THREADS, SKILLS, etc.
+    Adapter bindings only cover a subset of leaves (typically the live
+    KPIs). Serving the original file first preserves the demo UI for
+    unbound keys; the patcher IIFE that follows overrides each bound
+    leaf with the live adapter value at request time.
+
+    Falls back to the previous bare-data mode when the original file is
+    absent (test-templates / synthetic frontends that have no
+    pre-existing mock-data.js).
+    """
     leaves = MOCK_BINDINGS.get("leaves") or {}
-    helpers = MOCK_BINDINGS.get("helpers") or {}
     leaf_keys = list(leaves.keys())
     tasks = []
     for lk in leaf_keys:
@@ -530,6 +547,46 @@ async def _build_mock_js() -> web.Response:
     for lk, result in zip(leaf_keys, raw):
         leaf = leaves[lk]
         _set_leaf(data, lk, _post(result, leaf.get("postprocess")))
+
+    original_path = STATIC_DIR / "mock-data.js"
+    if original_path.is_file():
+        # Overlay mode: serve original fixtures, then patch bound leaves
+        try:
+            original_js = original_path.read_text(encoding="utf-8")
+        except OSError:
+            original_js = ""
+        patcher_lines = [
+            "(function () {",
+            "  var _patch = " + json.dumps(data) + ";",
+            "  function _set(obj, path, val) {",
+            "    var parts = path.split('.');",
+            "    var cur = obj;",
+            "    for (var i = 0; i < parts.length - 1; i++) {",
+            "      var k = parts[i];",
+            "      if (cur[k] === undefined || cur[k] === null) cur[k] = {};",
+            "      cur = cur[k];",
+            "    }",
+            "    cur[parts[parts.length - 1]] = val;",
+            "  }",
+            "  if (typeof window !== 'undefined' && window.MOCK) {",
+            "    Object.keys(_patch).forEach(function(path) {",
+            "      _set(window.MOCK, path, _patch[path]);",
+            "    });",
+            "  }",
+            "})();",
+        ]
+        patcher = chr(10).join(patcher_lines)
+        body = (
+            original_js
+            + chr(10)
+            + "/* ─── auracle live-data overlay (adapter-bound leaves) ─── */"
+            + chr(10)
+            + patcher
+        )
+        return web.Response(text=body, content_type="application/javascript")
+
+    # Fallback: original mock-data.js missing — emit just the bound data
+    helpers = MOCK_BINDINGS.get("helpers") or {}
     data_json = json.dumps(data)
     helper_items = list(helpers.items())
     helper_block = chr(10).join(src for _, src in helper_items)
