@@ -1,0 +1,9 @@
+aiohttp>=3.9
+google-cloud-bigquery>=3.27
+google-cloud-pubsub>=2.27
+google-cloud-run>=0.10
+google-auth>=2.35
+google-cloud-storage>=2.18
+httpx>=0.28
+pyyaml>=6.0
+json5>=0.9

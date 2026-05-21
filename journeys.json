@@ -1,0 +1,22 @@
+[
+  {
+    "name": "landing",
+    "url": "{base_url}/",
+    "assert_selector": "main, #root, [data-app]"
+  },
+  {
+    "name": "nav",
+    "url": "{base_url}/",
+    "interaction_script": "document.querySelector('nav a')?.click()",
+    "wait_ms": 2000,
+    "assert_no_selector": ".error, [data-error]"
+  },
+  {
+    "name": "404_fallback",
+    "url": "{base_url}/this-route-does-not-exist",
+    "assert_status": [
+      404,
+      200
+    ]
+  }
+]

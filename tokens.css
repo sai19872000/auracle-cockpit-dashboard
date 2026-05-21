@@ -1,0 +1,164 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   Aura Design System — colors & type tokens
+   Drop this into any factory-built app to inherit the brand.
+   ───────────────────────────────────────────────────────────────────────── */
+
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@200..700&family=Geist+Mono:wght@400..600&display=swap');
+
+:root {
+  /* ── Color · base ──────────────────────────────────────────────── */
+  --aura-ink:          #0A0E1A; /* primary background, dark mode */
+  --aura-steel:        #1B2236; /* card surfaces on dark */
+  --aura-steel-light:  #252D44; /* hover surfaces on dark */
+  --aura-mist:         #C9D7E8; /* secondary text, dim rings */
+  --aura-cream:        #F4F1EA; /* primary text on dark; light-mode bg */
+  --aura-paper:        #FAF8F2; /* card surfaces on light */
+
+  /* ── Color · signature ─────────────────────────────────────────── */
+  --aura-accent:       #8AB6FF; /* on dark surfaces */
+  --aura-accent-deep:  #3A6CFF; /* on light surfaces */
+  --aura-flare:        #FFB347; /* warm accent — reviewing / warning */
+
+  /* ── Color · semantic ──────────────────────────────────────────── */
+  --bg:                var(--aura-ink);
+  --surface:           var(--aura-steel);
+  --surface-hover:     var(--aura-steel-light);
+  --fg-1:              var(--aura-cream);
+  --fg-2:              rgba(255, 255, 255, 0.65);
+  --fg-3:              rgba(255, 255, 255, 0.45);
+  --rule:              rgba(255, 255, 255, 0.08);
+  --rule-strong:       rgba(255, 255, 255, 0.18);
+  --accent:            var(--aura-accent);
+  --warn:              var(--aura-flare);
+
+  /* ── Type · families ───────────────────────────────────────────── */
+  --font-display: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-body:    'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-mono:    'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  /* ── Type · scale ──────────────────────────────────────────────── */
+  --t-display-xl: 96px;
+  --t-display-lg: 72px;
+  --t-display-md: 56px;
+  --t-display-sm: 40px;
+  --t-h1:         32px;
+  --t-h2:         24px;
+  --t-h3:         18px;
+  --t-body:       17px;
+  --t-body-sm:    14px;
+  --t-caption:    12px;
+  --t-mono:       11px;
+
+  /* ── Spacing ───────────────────────────────────────────────────── */
+  --s-1:  4px;
+  --s-2:  8px;
+  --s-3:  12px;
+  --s-4:  16px;
+  --s-5:  24px;
+  --s-6:  32px;
+  --s-7:  48px;
+  --s-8:  64px;
+  --s-9:  96px;
+  --s-10: 120px;
+
+  /* ── Radius ────────────────────────────────────────────────────── */
+  --r-tight: 4px;
+  --r-card:  8px;
+  --r-app:   20px;
+  --r-pill:  100px;
+
+  /* ── Motion ────────────────────────────────────────────────────── */
+  --ease:    cubic-bezier(.2, .7, .3, 1);
+  --t-fast:  120ms;
+  --t-norm:  200ms;
+  --t-slow:  400ms;
+  --breath:  4s;
+
+  /* ── Shadow (use sparingly) ────────────────────────────────────── */
+  --glow-accent: 0 0 8px var(--aura-accent);
+}
+
+/* ── Light theme override ────────────────────────────────────────── */
+[data-theme='light'] {
+  --bg:            var(--aura-cream);
+  --surface:       var(--aura-paper);
+  --surface-hover: #FFFFFF;
+  --fg-1:          var(--aura-ink);
+  --fg-2:          rgba(10, 14, 26, 0.65);
+  --fg-3:          rgba(10, 14, 26, 0.40);
+  --rule:          rgba(10, 14, 26, 0.06);
+  --rule-strong:   rgba(10, 14, 26, 0.14);
+  --accent:        var(--aura-accent-deep);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Semantic element styles
+   ───────────────────────────────────────────────────────────────────────── */
+
+body {
+  background: var(--bg);
+  color: var(--fg-1);
+  font-family: var(--font-body);
+  font-size: var(--t-body);
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1 { font-family: var(--font-display); font-size: var(--t-display-lg); font-weight: 300; letter-spacing: -0.04em; line-height: 0.96; margin: 0; }
+h2 { font-family: var(--font-display); font-size: var(--t-display-md); font-weight: 300; letter-spacing: -0.035em; line-height: 1.05; margin: 0; }
+h3 { font-family: var(--font-display); font-size: var(--t-h2); font-weight: 400; letter-spacing: -0.02em; margin: 0; }
+p  { color: var(--fg-2); margin: 0; }
+
+code, .mono {
+  font-family: var(--font-mono);
+  font-size: var(--t-mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--fg-3);
+}
+
+.label {
+  font-family: var(--font-mono);
+  font-size: var(--t-mono);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+a { color: var(--accent); text-decoration: none; transition: opacity var(--t-fast) var(--ease); }
+a:hover { opacity: 0.75; }
+
+/* ── Easter eggs ─────────────────────────────────────────────────── */
+::selection { background: rgba(138, 182, 255, 0.25); color: var(--aura-accent); }
+
+/* ── Components · button ─────────────────────────────────────────── */
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 14px 24px;
+  border: none;
+  border-radius: var(--r-pill);
+  font-family: var(--font-body);
+  font-size: var(--t-body-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background var(--t-fast) var(--ease), opacity var(--t-fast) var(--ease);
+}
+.btn-primary  { background: var(--accent); color: var(--aura-ink); }
+.btn-primary:hover { opacity: 0.9; }
+.btn-ghost    { background: transparent; color: var(--fg-1); border: 1px solid var(--rule-strong); }
+.btn-ghost:hover { background: rgba(255,255,255,0.05); }
+
+/* ── Components · card ───────────────────────────────────────────── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-card);
+  padding: var(--s-6);
+}
+
+/* ── Components · status dot ─────────────────────────────────────── */
+.status-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--accent); box-shadow: var(--glow-accent);
+  display: inline-block;
+}
