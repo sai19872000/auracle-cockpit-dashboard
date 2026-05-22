@@ -3,7 +3,7 @@
 Do not hand-edit unless you're willing to take ownership — the next
 compose run will overwrite this file.
 
-AURACLE_EMIT_VERSION:iter28 — see compose.py _is_stale_compose for the
+AURACLE_EMIT_VERSION:iter30 — see compose.py _is_stale_compose for the
 short-circuit-bypass marker. Bump when emit_server's contract changes
 in a way that requires already-composed product repos to be re-emitted.
 """
@@ -122,6 +122,12 @@ ROUTES: list[dict] = [
         "args": {},
         "postprocess": "to_int"
       },
+      "MEMORY_ENTRIES[]": {
+        "adapter": "static_value",
+        "args": {
+          "value": None
+        }
+      },
       "NEW_SKILLS[].id": {
         "adapter": "static_value",
         "args": {
@@ -140,15 +146,23 @@ ROUTES: list[dict] = [
           "value": None
         }
       },
-      "INFLIGHT": {
-        "adapter": "cockpit_inflight",
+      "AGENTS[].id": {
+        "adapter": "static_value",
         "args": {
-          "limit": 20
+          "value": None
+        }
+      },
+      "INFLIGHT": {
+        "adapter": "static_value",
+        "args": {
+          "value": None
         }
       },
       "PROJECTS": {
-        "adapter": "cockpit_projects",
-        "args": {}
+        "adapter": "static_value",
+        "args": {
+          "value": None
+        }
       },
       "TOPICS[]": {
         "adapter": "static_value",
@@ -163,29 +177,27 @@ ROUTES: list[dict] = [
         }
       },
       "EVENTS": {
-        "adapter": "cockpit_events",
+        "adapter": "static_value",
         "args": {
-          "limit": 50
+          "value": None
         }
       },
       "MEMORY": {
-        "adapter": "memory_bank_recall",
+        "adapter": "static_value",
         "args": {
-          "scope": "",
-          "limit": 20
+          "value": None
         }
       },
       "RETROS": {
-        "adapter": "memory_bank_recall",
+        "adapter": "static_value",
         "args": {
-          "scope": "",
-          "limit": 20
+          "value": None
         }
       },
       "SKILLS": {
-        "adapter": "cockpit_skills",
+        "adapter": "static_value",
         "args": {
-          "limit": 30
+          "value": None
         }
       },
       "fmtRel": {
@@ -195,10 +207,9 @@ ROUTES: list[dict] = [
         }
       },
       "CHAT": {
-        "adapter": "memory_bank_recall",
+        "adapter": "static_value",
         "args": {
-          "scope": "",
-          "limit": 20
+          "value": None
         }
       },
       "NOW": {
@@ -206,22 +217,11 @@ ROUTES: list[dict] = [
         "args": {
           "value": None
         }
-      },
-      "MEMORY_ENTRIES": {
-        "adapter": "memory_bank_recall",
-        "args": {
-          "scope": "",
-          "limit": 20
-        }
-      },
-      "AGENTS": {
-        "adapter": "cockpit_agents",
-        "args": {}
       }
     },
     "helpers": {
-      "fmtRel": "const fmtRel = (ts) => {\n    const d = NOW - ts;\n    if (d < 60 * SEC) return Math.max(1, Math.round(d / SEC)) + 's ago';\n    if (d < 60 * MIN) return Math.round(d / MIN) + 'm ago';\n    if (d < 24 * HR)  return Math.round(d / HR) + 'h ago';\n    return Math.round(d / DAY) + 'd ago';\n  }",
       "makeEvent": "const makeEvent = (i) => {\n    const t = EVT_TEMPLATES[i % EVT_TEMPLATES.length];\n    return {\n      id: 'evt_' + (NOW - i * 1234).toString(36),\n      ts: NOW - i * (12 + (i * 7) % 40) * SEC,\n      topic: t.topic,\n      skill: t.skill,\n      stepId: 'stp_' + (0xb000 + i * 41).toString(16),\n      status: t.status,\n    };\n  }",
+      "fmtRel": "const fmtRel = (ts) => {\n    const d = NOW - ts;\n    if (d < 60 * SEC) return Math.max(1, Math.round(d / SEC)) + 's ago';\n    if (d < 60 * MIN) return Math.round(d / MIN) + 'm ago';\n    if (d < 24 * HR)  return Math.round(d / HR) + 'h ago';\n    return Math.round(d / DAY) + 'd ago';\n  }",
       "fmtTime": "const fmtTime = (ts) => {\n    const d = new Date(ts);\n    const hh = String(d.getHours()).padStart(2, '0');\n    const mm = String(d.getMinutes()).padStart(2, '0');\n    const ss = String(d.getSeconds()).padStart(2, '0');\n    return hh + ':' + mm + ':' + ss;\n  }"
     }
   }
@@ -320,6 +320,12 @@ MOCK_BINDINGS: dict = {
       "args": {},
       "postprocess": "to_int"
     },
+    "MEMORY_ENTRIES[]": {
+      "adapter": "static_value",
+      "args": {
+        "value": None
+      }
+    },
     "NEW_SKILLS[].id": {
       "adapter": "static_value",
       "args": {
@@ -338,15 +344,23 @@ MOCK_BINDINGS: dict = {
         "value": None
       }
     },
-    "INFLIGHT": {
-      "adapter": "cockpit_inflight",
+    "AGENTS[].id": {
+      "adapter": "static_value",
       "args": {
-        "limit": 20
+        "value": None
+      }
+    },
+    "INFLIGHT": {
+      "adapter": "static_value",
+      "args": {
+        "value": None
       }
     },
     "PROJECTS": {
-      "adapter": "cockpit_projects",
-      "args": {}
+      "adapter": "static_value",
+      "args": {
+        "value": None
+      }
     },
     "TOPICS[]": {
       "adapter": "static_value",
@@ -361,29 +375,27 @@ MOCK_BINDINGS: dict = {
       }
     },
     "EVENTS": {
-      "adapter": "cockpit_events",
+      "adapter": "static_value",
       "args": {
-        "limit": 50
+        "value": None
       }
     },
     "MEMORY": {
-      "adapter": "memory_bank_recall",
+      "adapter": "static_value",
       "args": {
-        "scope": "",
-        "limit": 20
+        "value": None
       }
     },
     "RETROS": {
-      "adapter": "memory_bank_recall",
+      "adapter": "static_value",
       "args": {
-        "scope": "",
-        "limit": 20
+        "value": None
       }
     },
     "SKILLS": {
-      "adapter": "cockpit_skills",
+      "adapter": "static_value",
       "args": {
-        "limit": 30
+        "value": None
       }
     },
     "fmtRel": {
@@ -393,10 +405,9 @@ MOCK_BINDINGS: dict = {
       }
     },
     "CHAT": {
-      "adapter": "memory_bank_recall",
+      "adapter": "static_value",
       "args": {
-        "scope": "",
-        "limit": 20
+        "value": None
       }
     },
     "NOW": {
@@ -404,22 +415,11 @@ MOCK_BINDINGS: dict = {
       "args": {
         "value": None
       }
-    },
-    "MEMORY_ENTRIES": {
-      "adapter": "memory_bank_recall",
-      "args": {
-        "scope": "",
-        "limit": 20
-      }
-    },
-    "AGENTS": {
-      "adapter": "cockpit_agents",
-      "args": {}
     }
   },
   "helpers": {
-    "fmtRel": "const fmtRel = (ts) => {\n    const d = NOW - ts;\n    if (d < 60 * SEC) return Math.max(1, Math.round(d / SEC)) + 's ago';\n    if (d < 60 * MIN) return Math.round(d / MIN) + 'm ago';\n    if (d < 24 * HR)  return Math.round(d / HR) + 'h ago';\n    return Math.round(d / DAY) + 'd ago';\n  }",
     "makeEvent": "const makeEvent = (i) => {\n    const t = EVT_TEMPLATES[i % EVT_TEMPLATES.length];\n    return {\n      id: 'evt_' + (NOW - i * 1234).toString(36),\n      ts: NOW - i * (12 + (i * 7) % 40) * SEC,\n      topic: t.topic,\n      skill: t.skill,\n      stepId: 'stp_' + (0xb000 + i * 41).toString(16),\n      status: t.status,\n    };\n  }",
+    "fmtRel": "const fmtRel = (ts) => {\n    const d = NOW - ts;\n    if (d < 60 * SEC) return Math.max(1, Math.round(d / SEC)) + 's ago';\n    if (d < 60 * MIN) return Math.round(d / MIN) + 'm ago';\n    if (d < 24 * HR)  return Math.round(d / HR) + 'h ago';\n    return Math.round(d / DAY) + 'd ago';\n  }",
     "fmtTime": "const fmtTime = (ts) => {\n    const d = new Date(ts);\n    const hh = String(d.getHours()).padStart(2, '0');\n    const mm = String(d.getMinutes()).padStart(2, '0');\n    const ss = String(d.getSeconds()).padStart(2, '0');\n    return hh + ':' + mm + ':' + ss;\n  }"
   }
 }
@@ -520,22 +520,72 @@ _MIME = {
 
 
 async def _build_mock_js() -> web.Response:
-    """Build window.MOCK JS dynamically by overlaying live adapter results
-    on top of the original mock-data.js fixtures.
+    """Serve mock-data.js — original fixture content + a small fetch-bootstrap
+    that pulls real data from the per-key /api/<key> endpoints emitted alongside.
 
-    The original mock-data.js (copied verbatim from the templates into
-    STATIC_DIR at compose time) defines window.MOCK with rich fixtures
-    for every consumer key — AGENTS, EVENTS, THREADS, SKILLS, etc.
-    Adapter bindings only cover a subset of leaves (typically the live
-    KPIs). Serving the original file first preserves the demo UI for
-    unbound keys; the patcher IIFE that follows overrides each bound
-    leaf with the live adapter value at request time.
+    iter-29 architectural shift: mock-data.js stays as the FIXTURE that
+    declares the consumer shape. Real data flows through real REST
+    endpoints (/api/agents, /api/events, etc.). The bootstrap appended
+    here fetches each endpoint and overlays the live values into
+    window.MOCK after page load — the React app then re-reads window.MOCK
+    on its next render cycle and shows real data. mock-data.js no longer
+    contains inline overlay data.
 
-    Falls back to the previous bare-data mode when the original file is
-    absent (test-templates / synthetic frontends that have no
-    pre-existing mock-data.js).
+    Falls back to a bare-data IIFE when the original file is absent
+    (synthetic frontends with no pre-existing mock-data.js).
     """
     leaves = MOCK_BINDINGS.get("leaves") or {}
+    original_path = STATIC_DIR / "mock-data.js"
+    if original_path.is_file():
+        # Overlay mode: serve original fixtures, then patch bound leaves
+        try:
+            original_js = original_path.read_text(encoding="utf-8")
+        except OSError:
+            original_js = ""
+        # iter-29: derive the list of top-level keys that have real-data
+        # endpoints from the leaves dict. Each unique top-level key gets
+        # a /api/<lowercase-key> endpoint emitted in build_app(). The
+        # bootstrap fetches each in parallel and overlays window.MOCK.
+        top_keys: dict = {}
+        for lk in leaves.keys():
+            top = lk.split(".")[0].split("[]")[0].rstrip(".")
+            if top:
+                top_keys[top] = True
+        endpoints = sorted(top_keys.keys())
+        endpoint_pairs_json = json.dumps([(k, "/api/" + k.lower()) for k in endpoints])
+        bootstrap_lines = [
+            "(function () {",
+            "  /* iter-29 fetch-bootstrap: pulls real data from the",
+            "     adapter-backed REST endpoints emitted by the factory and",
+            "     overlays the values into window.MOCK so the consumer app",
+            "     reads live data on the next render cycle. mock-data.js",
+            "     itself stays as the fixture / schema declaration. */",
+            "  var _ENDPOINTS = " + endpoint_pairs_json + ";",
+            "  if (typeof window === 'undefined' || !window.MOCK || !_ENDPOINTS.length) return;",
+            "  Promise.all(_ENDPOINTS.map(function (pair) {",
+            "    var k = pair[0]; var url = pair[1];",
+            "    return fetch(url, { cache: 'no-store' })",
+            "      .then(function (r) { return r.ok ? r.json() : null; })",
+            "      .then(function (val) { if (val !== null && val !== undefined) window.MOCK[k] = val; })",
+            "      .catch(function () { /* keep fixture on error */ });",
+            "  })).then(function () {",
+            "    try { document.dispatchEvent(new CustomEvent('auracle-data-loaded')); } catch (e) {}",
+            "  });",
+            "})();",
+        ]
+        bootstrap = chr(10).join(bootstrap_lines)
+        body = (
+            original_js
+            + chr(10)
+            + "/* ─── auracle real-data bootstrap (iter-29) ─── */"
+            + chr(10)
+            + bootstrap
+        )
+        return web.Response(text=body, content_type="application/javascript")
+
+    # Fallback: original mock-data.js missing — emit just the bound data
+    # via inline IIFE (the iter-14 dynamic-mock-data path, kept for
+    # synthetic frontends that have no fixture file).
     leaf_keys = list(leaves.keys())
     tasks = []
     for lk in leaf_keys:
@@ -544,69 +594,9 @@ async def _build_mock_js() -> web.Response:
         tasks.append(fn(**leaf.get("args", {})))
     raw = await asyncio.gather(*tasks, return_exceptions=True)
     data: dict = {}
-    flat: dict = {}
     for lk, result in zip(leaf_keys, raw):
         leaf = leaves[lk]
-        val = _post(result, leaf.get("postprocess"))
-        _set_leaf(data, lk, val)
-        flat[lk] = val
-
-    original_path = STATIC_DIR / "mock-data.js"
-    if original_path.is_file():
-        # Overlay mode: serve original fixtures, then patch bound leaves
-        try:
-            original_js = original_path.read_text(encoding="utf-8")
-        except OSError:
-            original_js = ""
-        # iter-23: emit the patch as a FLAT dotted-path map (not the
-        # nested data dict). The JS _set splits each path on '.' and
-        # walks/creates the tree, so flat keys preserve sibling values
-        # in the original fixtures (e.g. patching KPIS.services_up.val
-        # leaves KPIS.intents_24h alone). Prune null/empty results so
-        # the overlay doesn't clobber rich fixtures for unbound leaves.
-        meaningful: dict = {}
-        for path, val in flat.items():
-            if val is None:
-                continue
-            if isinstance(val, (dict, list)) and not val:
-                continue
-            # Treat the `id: None` not-found shape from a lookup leaf
-            # as empty too — the binding planner emits this when an
-            # adapter call returns no row.
-            if isinstance(val, dict) and len(val) == 1 and val.get("id") is None:
-                continue
-            meaningful[path] = val
-        patcher_lines = [
-            "(function () {",
-            "  var _patch = " + json.dumps(meaningful) + ";",
-            "  function _set(obj, path, val) {",
-            "    var parts = path.split('.');",
-            "    var cur = obj;",
-            "    for (var i = 0; i < parts.length - 1; i++) {",
-            "      var k = parts[i];",
-            "      if (cur[k] === undefined || cur[k] === null) cur[k] = {};",
-            "      cur = cur[k];",
-            "    }",
-            "    cur[parts[parts.length - 1]] = val;",
-            "  }",
-            "  if (typeof window !== 'undefined' && window.MOCK) {",
-            "    Object.keys(_patch).forEach(function(path) {",
-            "      _set(window.MOCK, path, _patch[path]);",
-            "    });",
-            "  }",
-            "})();",
-        ]
-        patcher = chr(10).join(patcher_lines)
-        body = (
-            original_js
-            + chr(10)
-            + "/* ─── auracle live-data overlay (adapter-bound leaves) ─── */"
-            + chr(10)
-            + patcher
-        )
-        return web.Response(text=body, content_type="application/javascript")
-
-    # Fallback: original mock-data.js missing — emit just the bound data
+        _set_leaf(data, lk, _post(result, leaf.get("postprocess")))
     helpers = MOCK_BINDINGS.get("helpers") or {}
     data_json = json.dumps(data)
     helper_items = list(helpers.items())
@@ -628,6 +618,53 @@ async def _build_mock_js() -> web.Response:
 
 async def _mock_data_js(_: web.Request) -> web.Response:
     return await _cached("mock-data-js", _build_mock_js)
+
+
+def _make_mock_key_handler(top_key: str) -> Any:
+    """Per-top-level-MOCK-key endpoint emitted by iter-29. Calls all
+    adapter leaves whose dotted path starts with `top_key` and assembles
+    the nested value the frontend's window.MOCK[top_key] would read.
+
+    A whole-array key (AGENTS, EVENTS) usually has ONE binding that
+    returns the full array. A nested-dict key (KPIS.services_up.val)
+    has many leaves under the same top; each gets its own adapter call
+    and the results are merged into a nested dict.
+    """
+    async def _handler(request: web.Request) -> web.Response:
+        leaves = MOCK_BINDINGS.get("leaves") or {}
+        matched = {lk: cfg for lk, cfg in leaves.items()
+                   if lk == top_key or lk.startswith(top_key + ".") or lk.startswith(top_key + "[]")}
+        if not matched:
+            return web.json_response(None)
+        async def _call(lk: str, cfg: dict) -> Any:
+            try:
+                fn = getattr(adapters, cfg["adapter"])
+                val = await fn(**cfg.get("args", {}))
+                return _post(val, cfg.get("postprocess"))
+            except Exception as exc:
+                log.warning("mock-key %s leaf %s adapter %s failed: %s",
+                            top_key, lk, cfg.get("adapter"), exc)
+                return None
+        keys = list(matched.keys())
+        results = await asyncio.gather(*[_call(k, matched[k]) for k in keys])
+        # If only one leaf and it IS the top key, return raw
+        if len(keys) == 1 and keys[0] == top_key:
+            return web.json_response(results[0])
+        # Otherwise assemble the nested shape under the top key
+        out: dict = {}
+        for lk, val in zip(keys, results):
+            if val is None:
+                continue
+            if isinstance(val, (dict, list)) and not val:
+                continue
+            rel = lk[len(top_key):].lstrip(".")
+            if not rel:
+                # leaf path is exactly top_key (rare in nested mode)
+                out["_top"] = val
+                continue
+            _set_leaf(out, rel, val)
+        return web.json_response(out)
+    return _handler
 
 
 async def static_h(request: web.Request) -> web.Response:
@@ -678,6 +715,14 @@ def build_app() -> web.Application:
     app.router.add_get("/health", health)
     app.router.add_get("/journeys.json", journeys_h)
     # no API routes
+    # iter-29 per-top-level-key endpoints (e.g. /api/agents, /api/events).
+    # One per unique top-level MOCK key inferred from leaf bindings.
+    _seen_top: set = set()
+    for _lk in (MOCK_BINDINGS.get("leaves") or {}).keys():
+        _top = _lk.split(".")[0].split("[]")[0].rstrip(".")
+        if _top and _top not in _seen_top:
+            _seen_top.add(_top)
+            app.router.add_get("/api/" + _top.lower(), _make_mock_key_handler(_top))
     app.router.add_get("/mock-data.js", _mock_data_js)
     app.router.add_get("/", static_h)
     app.router.add_get("/{path:.*}", static_h)
