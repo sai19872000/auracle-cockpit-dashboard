@@ -3,7 +3,7 @@
 Do not hand-edit unless you're willing to take ownership — the next
 compose run will overwrite this file.
 
-AURACLE_EMIT_VERSION:iter24 — see compose.py _is_stale_compose for the
+AURACLE_EMIT_VERSION:iter28 — see compose.py _is_stale_compose for the
 short-circuit-bypass marker. Bump when emit_server's contract changes
 in a way that requires already-composed product repos to be re-emitted.
 """
@@ -141,13 +141,13 @@ ROUTES: list[dict] = [
         }
       },
       "INFLIGHT": {
-        "adapter": "bq_inflight_steps",
+        "adapter": "cockpit_inflight",
         "args": {
           "limit": 20
         }
       },
       "PROJECTS": {
-        "adapter": "project_registry_list",
+        "adapter": "cockpit_projects",
         "args": {}
       },
       "TOPICS[]": {
@@ -183,9 +183,9 @@ ROUTES: list[dict] = [
         }
       },
       "SKILLS": {
-        "adapter": "static_value",
+        "adapter": "cockpit_skills",
         "args": {
-          "value": None
+          "limit": 30
         }
       },
       "fmtRel": {
@@ -339,13 +339,13 @@ MOCK_BINDINGS: dict = {
       }
     },
     "INFLIGHT": {
-      "adapter": "bq_inflight_steps",
+      "adapter": "cockpit_inflight",
       "args": {
         "limit": 20
       }
     },
     "PROJECTS": {
-      "adapter": "project_registry_list",
+      "adapter": "cockpit_projects",
       "args": {}
     },
     "TOPICS[]": {
@@ -381,9 +381,9 @@ MOCK_BINDINGS: dict = {
       }
     },
     "SKILLS": {
-      "adapter": "static_value",
+      "adapter": "cockpit_skills",
       "args": {
-        "value": None
+        "limit": 30
       }
     },
     "fmtRel": {
