@@ -3,7 +3,7 @@
 Do not hand-edit unless you're willing to take ownership — the next
 compose run will overwrite this file.
 
-AURACLE_EMIT_VERSION:iter30 — see compose.py _is_stale_compose for the
+AURACLE_EMIT_VERSION:iter32 — see compose.py _is_stale_compose for the
 short-circuit-bypass marker. Bump when emit_server's contract changes
 in a way that requires already-composed product repos to be re-emitted.
 """
@@ -559,14 +559,32 @@ async def _build_mock_js() -> web.Response:
             "     adapter-backed REST endpoints emitted by the factory and",
             "     overlays the values into window.MOCK so the consumer app",
             "     reads live data on the next render cycle. mock-data.js",
-            "     itself stays as the fixture / schema declaration. */",
+            "     itself stays as the fixture / schema declaration.",
+            "     iter-32: only overlay when the endpoint returns a",
+            "     meaningful payload — empty arrays, empty objects, null,",
+            "     and {id: null} not-found shapes preserve the original",
+            "     fixture so unbound keys keep their rich content and the",
+            "     UI doesn't crash dereferencing empty arrays. */",
             "  var _ENDPOINTS = " + endpoint_pairs_json + ";",
             "  if (typeof window === 'undefined' || !window.MOCK || !_ENDPOINTS.length) return;",
+            "  function _isMeaningful(v) {",
+            "    if (v === null || v === undefined) return false;",
+            "    if (Array.isArray(v)) return v.length > 0;",
+            "    if (typeof v === 'object') {",
+            "      var keys = Object.keys(v);",
+            "      if (keys.length === 0) return false;",
+            "      if (keys.length === 1 && keys[0] === 'id' && v.id === null) return false;",
+            "      return true;",
+            "    }",
+            "    if (typeof v === 'string') return v.length > 0;",
+            "    if (typeof v === 'number') return true;",
+            "    return true;",
+            "  }",
             "  Promise.all(_ENDPOINTS.map(function (pair) {",
             "    var k = pair[0]; var url = pair[1];",
             "    return fetch(url, { cache: 'no-store' })",
             "      .then(function (r) { return r.ok ? r.json() : null; })",
-            "      .then(function (val) { if (val !== null && val !== undefined) window.MOCK[k] = val; })",
+            "      .then(function (val) { if (_isMeaningful(val)) window.MOCK[k] = val; })",
             "      .catch(function () { /* keep fixture on error */ });",
             "  })).then(function () {",
             "    try { document.dispatchEvent(new CustomEvent('auracle-data-loaded')); } catch (e) {}",
