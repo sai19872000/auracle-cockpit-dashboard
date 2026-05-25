@@ -265,306 +265,6 @@ async def project_registry_list() -> list[dict]:
         return []
 
 
-async def cockpit_agents() -> list[dict]:
-    """Return live auracle services as cockpit-shaped agent rows.
-
-    Maps Cloud Run services to the AGENT consumer shape inferred from
-    the cockpit's mock-data.js fixture: each agent carries
-    `{id, name, role, desc, model, tier, health, lastActive, opsPerMin,
-    config, invocations}`. Unknown fields are filled with empty values
-    rather than the fake fixture so the UI shows real auracle state
-    (services_up, names, recency) even when individual auracle services
-    don't expose every detail.
-    """
-    async def _fetch() -> list[dict]:
-        import asyncio
-        def _run() -> list[dict]:
-            try:
-                from google.cloud import run_v2
-                client = run_v2.ServicesClient()
-                parent = f"projects/{_PROJECT}/locations/{_REGION}"
-                rows: list[dict] = []
-                for s in client.list_services(parent=parent):
-                    name = s.name.split("/")[-1]
-                    short = name.replace("auracle-", "")
-                    cond = getattr(s, "terminal_condition", None)
-                    state = getattr(cond, "state", None) if cond else None
-                    healthy = state == cond.State.CONDITION_SUCCEEDED if cond else False
-                    rev = getattr(s, "latest_ready_revision", "") or ""
-                    update_ts = getattr(s, "update_time", None)
-                    last_active_ms = int(update_ts.timestamp() * 1000) if update_ts else 0
-                    rows.append({
-                        "id": short or name,
-                        "name": short or name,
-                        "role": "",
-                        "desc": "",
-                        "model": "",
-                        "tier": "core",
-                        "health": "healthy" if healthy else "warming",
-                        "lastActive": last_active_ms,
-                        "opsPerMin": [],
-                        "config": {
-                            "model": "",
-                            "promptSha": "",
-                            "version": rev.split("-")[-1] if rev else "",
-                            "tools": [],
-                        },
-                        "invocations": [],
-                    })
-                return rows
-            except Exception as exc:
-                log.warning("cockpit_agents failed: %s", exc)
-                return []
-        return await asyncio.get_event_loop().run_in_executor(None, _run)
-    try:
-        return await _with_cache("cockpit_agents", _fetch)
-    except Exception as exc:
-        log.warning("cockpit_agents outer failed: %s", exc)
-        return []
-
-
-async def cockpit_events(limit: int = 50) -> list[dict]:
-    """Return recent BQ events in cockpit-shaped event rows.
-
-    Maps factory.eval / factory.tasks events to the EVENTS consumer
-    shape inferred from cockpit fixtures: `{id, ts, topic, skill,
-    stepId, status}`. Pulls the most recent N rows from the audit sink.
-    """
-    async def _fetch(limit: int) -> list[dict]:
-        sql = (
-            f"SELECT received_ts, topic, "
-            f"  JSON_VALUE(payload, '$.skill') AS skill, "
-            f"  JSON_VALUE(payload, '$.step_id') AS step_id, "
-            f"  JSON_VALUE(payload, '$.status') AS status, "
-            f"  JSON_VALUE(payload, '$.intent_id') AS intent_id "
-            f"FROM `{_PROJECT}.{_DATASET}.{_TABLE}` "
-            f"WHERE received_ts > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 2 HOUR) "
-            f"  AND JSON_VALUE(payload, '$.skill') IS NOT NULL "
-            f"ORDER BY received_ts DESC LIMIT {int(limit)}"
-        )
-        rows = await _bq_query(sql)
-        out: list[dict] = []
-        for r in rows:
-            ts = r.get("received_ts")
-            if hasattr(ts, "timestamp"):
-                ts_ms = int(ts.timestamp() * 1000)
-            elif isinstance(ts, (int, float)):
-                ts_ms = int(ts)
-            else:
-                ts_ms = 0
-            sid = r.get("step_id") or ""
-            out.append({
-                "id": "evt_" + (sid or str(ts_ms))[:18],
-                "ts": ts_ms,
-                "topic": r.get("topic") or "",
-                "skill": r.get("skill") or "",
-                "stepId": sid,
-                "status": r.get("status") or "",
-            })
-        return out
-    try:
-        return await _with_cache(_cached_key("cockpit_events", limit=limit), _fetch, limit=limit)
-    except Exception as exc:
-        log.warning("cockpit_events failed: %s", exc)
-        return []
-
-
-async def cockpit_projects() -> list[dict]:
-    """Return Cloud Run services in cockpit PROJECT row shape.
-
-    Each deployed Cloud Run service IS a factory project for cockpit
-    purposes. Derives slug from the service name and intent counts from
-    a single BQ groupby. Shape (from cockpit fixtures): `{slug, title,
-    repo, url, status, intents, lastIntent, hasPR, hasJules, hasImage,
-    errored, digest}`.
-
-    Doesn't depend on the seed registry file, which isn't shipped in
-    the cockpit container — uses the same Cloud Run API path as
-    cockpit_agents so the perms requirements match.
-    """
-    async def _fetch() -> list[dict]:
-        import asyncio
-        def _list_services() -> list[dict]:
-            try:
-                from google.cloud import run_v2
-                client = run_v2.ServicesClient()
-                parent = f"projects/{_PROJECT}/locations/{_REGION}"
-                rows: list[dict] = []
-                for s in client.list_services(parent=parent):
-                    name = s.name.split("/")[-1]
-                    cond = getattr(s, "terminal_condition", None)
-                    healthy = (
-                        cond.state == cond.State.CONDITION_SUCCEEDED
-                        if cond else False
-                    )
-                    update_ts = getattr(s, "update_time", None)
-                    update_ms = int(update_ts.timestamp() * 1000) if update_ts else 0
-                    rev = getattr(s, "latest_ready_revision", "") or ""
-                    rows.append({
-                        "name": name,
-                        "uri": getattr(s, "uri", ""),
-                        "healthy": healthy,
-                        "update_ms": update_ms,
-                        "rev": rev,
-                    })
-                return rows
-            except Exception as exc:
-                log.warning("cockpit_projects list_services failed: %s", exc)
-                return []
-        svc_rows = await asyncio.get_event_loop().run_in_executor(None, _list_services)
-        if not svc_rows:
-            return []
-        # Pull intent counts per slug in a single round-trip
-        slug_list = ",".join(f"'{r['name']}'" for r in svc_rows)
-        intents_by_slug: dict[str, dict] = {}
-        try:
-            sql = (
-                f"SELECT JSON_VALUE(payload, '$.inputs.slug') AS slug, "
-                f"  COUNT(*) AS intents, "
-                f"  UNIX_MILLIS(MAX(received_ts)) AS last_intent_ms "
-                f"FROM `{_PROJECT}.{_DATASET}.{_TABLE}` "
-                f"WHERE topic='factory.tasks' "
-                f"  AND received_ts > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 7 DAY) "
-                f"  AND JSON_VALUE(payload, '$.inputs.slug') IN ({slug_list}) "
-                f"GROUP BY slug"
-            )
-            bq_rows = await _bq_query(sql)
-            for br in bq_rows:
-                s = br.get("slug")
-                if s:
-                    intents_by_slug[s] = {
-                        "intents": int(br.get("intents") or 0),
-                        "lastIntent": int(br.get("last_intent_ms") or 0),
-                    }
-        except Exception as exc:
-            log.warning("cockpit_projects intents query failed: %s", exc)
-        out: list[dict] = []
-        for r in svc_rows:
-            slug = r["name"]
-            stats = intents_by_slug.get(slug, {})
-            out.append({
-                "slug": slug,
-                "title": "",
-                "repo": f"sai19872000/{slug}",
-                "url": r.get("uri", ""),
-                "status": "live" if r.get("healthy") else "partial",
-                "intents": stats.get("intents", 0),
-                "lastIntent": stats.get("lastIntent", r.get("update_ms", 0)),
-                "hasPR": False,
-                "hasJules": False,
-                "hasImage": bool(r.get("rev")),
-                "errored": not r.get("healthy"),
-                "digest": str(r.get("rev") or "").split("-")[-1] if r.get("rev") else "",
-            })
-        return out
-    try:
-        return await _with_cache("cockpit_projects", _fetch)
-    except Exception as exc:
-        log.warning("cockpit_projects outer failed: %s", exc)
-        return []
-
-
-async def cockpit_skills(limit: int = 30) -> list[dict]:
-    """Return per-skill aggregates in cockpit SKILL row shape.
-
-    Maps factory.eval grouped-by-skill counts to: `{id, cat, desc,
-    invocations, pSuccess, kind, model, reversible, tools}`. Categories
-    + kind + model + reversible default to empty/false because that
-    metadata lives in skill.md frontmatter, not in the eval stream.
-    """
-    async def _fetch(limit: int) -> list[dict]:
-        sql = (
-            f"SELECT JSON_VALUE(payload, '$.skill') AS skill, "
-            f"  COUNT(*) AS invocations, "
-            f"  SUM(CASE WHEN JSON_VALUE(payload, '$.status') = 'success' THEN 1 ELSE 0 END) AS successes "
-            f"FROM `{_PROJECT}.{_DATASET}.{_TABLE}` "
-            f"WHERE topic='factory.eval' "
-            f"  AND received_ts > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 7 DAY) "
-            f"  AND JSON_VALUE(payload, '$.skill') IS NOT NULL "
-            f"  AND JSON_VALUE(payload, '$.status') IS NOT NULL "
-            f"GROUP BY skill "
-            f"ORDER BY invocations DESC LIMIT {int(limit)}"
-        )
-        rows = await _bq_query(sql)
-        out: list[dict] = []
-        for r in rows:
-            skill = str(r.get("skill") or "")
-            inv = int(r.get("invocations") or 0)
-            succ = int(r.get("successes") or 0)
-            psucc = round(succ / inv, 3) if inv else 0.0
-            out.append({
-                "id": skill,
-                "cat": "",
-                "desc": "",
-                "invocations": inv,
-                "pSuccess": psucc,
-                "kind": "",
-                "model": "",
-                "reversible": True,
-                "tools": [],
-            })
-        return out
-    try:
-        return await _with_cache(_cached_key("cockpit_skills", limit=limit), _fetch, limit=limit)
-    except Exception as exc:
-        log.warning("cockpit_skills failed: %s", exc)
-        return []
-
-
-async def cockpit_inflight(limit: int = 20) -> list[dict]:
-    """Return currently-in-flight steps in cockpit INFLIGHT row shape.
-
-    A step is in-flight if it has a factory.tasks dispatch event but
-    no matching factory.eval terminal status. Shape: `{stepId, skill,
-    elapsedMs, agent, project}`. agent fixed to 'worker' (the only
-    skill executor); project derived from inputs.slug.
-    """
-    async def _fetch(limit: int) -> list[dict]:
-        sql = (
-            f"WITH dispatches AS ("
-            f"  SELECT JSON_VALUE(payload, '$.step_id') AS step_id, "
-            f"    JSON_VALUE(payload, '$.skill') AS skill, "
-            f"    JSON_VALUE(payload, '$.inputs.slug') AS slug, "
-            f"    UNIX_MILLIS(received_ts) AS dispatch_ms "
-            f"  FROM `{_PROJECT}.{_DATASET}.{_TABLE}` "
-            f"  WHERE topic='factory.tasks' "
-            f"    AND received_ts > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 HOUR) "
-            f"    AND JSON_VALUE(payload, '$.step_id') IS NOT NULL"
-            f"), terminals AS ("
-            f"  SELECT JSON_VALUE(payload, '$.step_id') AS step_id "
-            f"  FROM `{_PROJECT}.{_DATASET}.{_TABLE}` "
-            f"  WHERE topic='factory.eval' "
-            f"    AND received_ts > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 HOUR) "
-            f"    AND JSON_VALUE(payload, '$.step_id') IS NOT NULL "
-            f"    AND JSON_VALUE(payload, '$.status') IN ('success','failed','partial')"
-            f") "
-            f"SELECT d.step_id, d.skill, d.slug, d.dispatch_ms "
-            f"FROM dispatches d LEFT JOIN terminals t USING (step_id) "
-            f"WHERE t.step_id IS NULL "
-            f"ORDER BY d.dispatch_ms DESC LIMIT {int(limit)}"
-        )
-        rows = await _bq_query(sql)
-        import time as _time
-        now_ms = int(_time.time() * 1000)
-        out: list[dict] = []
-        for r in rows:
-            disp = int(r.get("dispatch_ms") or 0)
-            elapsed_ms = max(0, now_ms - disp) if disp else 0
-            out.append({
-                "stepId": str(r.get("step_id") or ""),
-                "skill": str(r.get("skill") or ""),
-                "elapsedMs": elapsed_ms,
-                "agent": "worker",
-                "project": str(r.get("slug") or ""),
-            })
-        return out
-    try:
-        return await _with_cache(_cached_key("cockpit_inflight", limit=limit), _fetch, limit=limit)
-    except Exception as exc:
-        log.warning("cockpit_inflight failed: %s", exc)
-        return []
-
-
 async def static_value(value: Any = None) -> Any:
     """Echo helper — returns whatever is passed. Used for shape leaves we can't map."""
     return value
@@ -573,38 +273,107 @@ async def static_value(value: Any = None) -> Any:
 # ── catalog introspection ─────────────────────────────────────────────────
 
 _ADAPTER_DOCS: dict[str, str] = {
-    "bq_count_by_topic": "Count BQ events by topic in last N hours. Args: topic (str), hours (int). Returns: int.",
-    "bq_topic_sparkline": "Hourly event count sparkline. Args: topic (str), hours (int). Returns: list[int].",
-    "bq_recent_events": "Recent events from BQ. Args: topic (str|None), limit (int), hours (int). Returns: list[dict].",
-    "bq_inflight_steps": "In-flight steps from BQ. Args: limit (int). Returns: list[dict].",
-    "cloudrun_services_count": "Count active Cloud Run services. No args. Returns: int.",
-    "cloudrun_services_list": "List Cloud Run services. No args. Returns: list[dict].",
-    "cockpit_agents": "Real auracle services in cockpit agent-row shape (id, name, health, lastActive, opsPerMin, config). No args. Returns: list[dict].",
-    "cockpit_events": "Recent BQ events in cockpit event-row shape (id, ts, topic, skill, stepId, status). Args: limit (int). Returns: list[dict].",
-    "cockpit_projects": "Project registry rows in cockpit PROJECT shape (slug, title, repo, intents, lastIntent, ...). No args. Returns: list[dict].",
-    "cockpit_skills": "Per-skill BQ aggregates in cockpit SKILL row shape (id, invocations, pSuccess, ...). Args: limit (int). Returns: list[dict].",
-    "cockpit_inflight": "Currently-in-flight steps in cockpit INFLIGHT row shape (stepId, skill, elapsedMs, agent, project). Args: limit (int). Returns: list[dict].",
-    "gh_recent_repos": "Recently updated GitHub repos. Args: owner (str), limit (int). Returns: list[dict].",
-    "memory_bank_recall": "Recall items from Memory Bank. Args: scope (str), limit (int). Returns: list[dict].",
-    "project_registry_list": "List all registered projects. No args. Returns: list[dict].",
-    "static_value": "Echo any value unchanged. Args: value (Any). Returns: Any.",
+    # iter-34: catalog descriptions made discriminative for Gemini. Each
+    # entry describes (a) what the primitive returns, (b) the SHAPE of
+    # the result, (c) which consumer shapes it MATCHES. Gemini reads
+    # these when picking an adapter per top-level mock key.
+    "bq_count_by_topic": (
+        "INTEGER count of factory.* Pub/Sub events on a given topic in the last N hours. "
+        "Args: topic (str, e.g. 'factory.tasks', 'factory.deploy', 'factory.incident'), hours (int). "
+        "Returns: int. "
+        "Match consumer keys: KPI scalar values like services_up, intents_24h, deploys_24h, "
+        "p0_incidents_24h, errors_today — anything whose value is a single non-negative count."
+    ),
+    "bq_topic_sparkline": (
+        "Per-hour bucketed count of factory.* events as a sparkline list. "
+        "Args: topic (str), hours (int, typically 24). "
+        "Returns: list[int] of length `hours` with one count per bucket. "
+        "Match consumer keys: spark / sparkline / trend / history fields next to a KPI val."
+    ),
+    "bq_recent_events": (
+        "Recent factory.* Pub/Sub events from BigQuery audit sink. "
+        "Args: topic (str|None for all topics), limit (int, e.g. 50), hours (int). "
+        "Returns: list[dict] with fields {ts (epoch ms), topic, skill, step_id, status, intent_id, payload_preview}. "
+        "Match consumer keys: events / event_stream / activity / audit_log / feed — anything that's "
+        "an array of recent factory events with timestamps."
+    ),
+    "bq_inflight_steps": (
+        "Currently-running factory steps from BigQuery: rows on factory.tasks with no matching factory.eval terminal status. "
+        "Args: limit (int). "
+        "Returns: list[dict] with fields {step_id, skill, slug, dispatched_ts (epoch ms)}. "
+        "Match consumer keys: inflight / running / in_progress / live_tasks / active_jobs."
+    ),
+    "cloudrun_services_count": (
+        "INTEGER count of healthy Cloud Run services in the project (terminal_condition=CONDITION_SUCCEEDED). "
+        "No args. Returns: int. "
+        "Match consumer keys: services_up, services_count, fleet_size, running_services — any "
+        "scalar count of services / runtime instances / agents."
+    ),
+    "cloudrun_services_list": (
+        "All Cloud Run services in the project as a list of dicts. "
+        "No args. "
+        "Returns: list[dict] with fields {name (e.g. 'auracle-worker'), uri, latest_ready_revision, "
+        "terminal_condition_state (e.g. 'CONDITION_SUCCEEDED'), update_time}. "
+        "Match consumer keys: services / agents / fleet / runtime_instances / runners — any "
+        "array of Cloud-Run-deployed services, including agent-like rows with id/name/health/uri."
+    ),
+    "gh_recent_repos": (
+        "Recently updated GitHub repos under a user/org. "
+        "Args: owner (str), limit (int). "
+        "Returns: list[dict] with fields {name, full_name, updated_at}. "
+        "Match consumer keys: repos / repositories / git_projects — when consumer wants a list "
+        "of code repos with names + last-update timestamps."
+    ),
+    "memory_bank_recall": (
+        "Items from the auracle Memory Bank scoped to a prefix. "
+        "Args: scope (str, e.g. 'agent:worker' or 'project:posy' or '' for all), limit (int). "
+        "Returns: list[dict] with fields {memory_id, scope, content_preview, last_recalled_at (epoch ms), score}. "
+        "Match consumer keys: memory / memory_entries / recall / context / saved_facts."
+    ),
+    "project_registry_list": (
+        "All projects from the local memory/seed/projects.json registry. "
+        "No args. "
+        "Returns: list[dict] with fields {slug, repo, url, status, description}. "
+        "Match consumer keys: projects / registered_projects / portfolio — when consumer wants the "
+        "factory's product catalog with slugs + repos. (Note: requires the seed file shipped in image.)"
+    ),
+    "static_value": (
+        "Echo helper — returns whatever literal you pass via args.value. "
+        "Use as LAST RESORT when no other primitive matches the consumer shape. "
+        "Prefer real primitives even if they need shape rewriting downstream."
+    ),
 }
 
 _ADAPTER_SAMPLES: dict[str, Any] = {
     "bq_count_by_topic": 42,
     "bq_topic_sparkline": [0, 1, 3, 0, 2, 5, 0] * 3 + [0] * 3,
-    "bq_recent_events": [{"ts": 1716000000000, "topic": "factory.tasks", "payload_preview": "{}"}],
-    "bq_inflight_steps": [{"step_id": "abc", "skill": "docker_build", "dispatched_ts": 1716000000000}],
+    "bq_recent_events": [{
+        "ts": 1716000000000, "topic": "factory.tasks",
+        "skill": "lint", "step_id": "auto-ship-lint",
+        "status": "success", "intent_id": "intent-abc",
+        "payload_preview": "{}",
+    }],
+    "bq_inflight_steps": [{
+        "step_id": "stp_b400", "skill": "docker_build",
+        "slug": "auracle-worker", "dispatched_ts": 1716000000000,
+    }],
     "cloudrun_services_count": 11,
-    "cloudrun_services_list": [{"name": "auracle-worker", "uri": "https://auracle-worker.run.app", "creator": ""}],
-    "cockpit_agents": [{"id": "worker", "name": "worker", "role": "", "desc": "", "model": "", "tier": "core", "health": "healthy", "lastActive": 1716000000000, "opsPerMin": [], "config": {"model": "", "promptSha": "", "version": "00050", "tools": []}, "invocations": []}],
-    "cockpit_events": [{"id": "evt_x", "ts": 1716000000000, "topic": "factory.eval", "skill": "lint", "stepId": "auto-ship-lint", "status": "success"}],
-    "cockpit_projects": [{"slug": "auracle", "title": "", "repo": "sai19872000/auracle", "url": "", "status": "live", "intents": 42, "lastIntent": 1716000000000, "hasPR": False, "hasJules": False, "hasImage": False, "errored": False, "digest": ""}],
-    "cockpit_skills": [{"id": "lint", "cat": "", "desc": "", "invocations": 100, "pSuccess": 0.92, "kind": "", "model": "", "reversible": True, "tools": []}],
-    "cockpit_inflight": [{"stepId": "stp_x", "skill": "docker_build", "elapsedMs": 4800, "agent": "worker", "project": "auracle"}],
+    "cloudrun_services_list": [{
+        "name": "auracle-worker", "uri": "https://auracle-worker.run.app",
+        "latest_ready_revision": "auracle-worker-00109-tnf",
+        "terminal_condition_state": "CONDITION_SUCCEEDED",
+        "update_time": 1716000000,
+    }],
     "gh_recent_repos": [{"name": "auracle", "full_name": "sai19872000/auracle", "updated_at": "2026-05-18T00:00:00Z"}],
-    "memory_bank_recall": [{"scope": "agent:worker", "memory_id": "m1", "content_preview": "...", "last_recalled_at": 0, "score": 0.85}],
-    "project_registry_list": [{"slug": "cockpit", "repo": "sai19872000/cockpit", "status": "live"}],
+    "memory_bank_recall": [{
+        "memory_id": "mem_07a1", "scope": "agent:worker",
+        "content_preview": "...", "last_recalled_at": 1716000000000, "score": 0.85,
+    }],
+    "project_registry_list": [{
+        "slug": "auracle-cockpit-dashboard", "repo": "sai19872000/auracle-cockpit-dashboard",
+        "url": "https://auracle-cockpit-dashboard.run.app", "status": "live",
+        "description": "factory live cockpit",
+    }],
     "static_value": None,
 }
 
