@@ -3,7 +3,7 @@
 Do not hand-edit unless you're willing to take ownership — the next
 compose run will overwrite this file.
 
-AURACLE_EMIT_VERSION:iter36 — see compose.py _is_stale_compose for the
+AURACLE_EMIT_VERSION:iter37 — see compose.py _is_stale_compose for the
 short-circuit-bypass marker. Bump when emit_server's contract changes
 in a way that requires already-composed product repos to be re-emitted.
 """
@@ -220,8 +220,8 @@ ROUTES: list[dict] = [
       }
     },
     "helpers": {
-      "fmtRel": "const fmtRel = (ts) => {\n    const d = NOW - ts;\n    if (d < 60 * SEC) return Math.max(1, Math.round(d / SEC)) + 's ago';\n    if (d < 60 * MIN) return Math.round(d / MIN) + 'm ago';\n    if (d < 24 * HR)  return Math.round(d / HR) + 'h ago';\n    return Math.round(d / DAY) + 'd ago';\n  }",
       "makeEvent": "const makeEvent = (i) => {\n    const t = EVT_TEMPLATES[i % EVT_TEMPLATES.length];\n    return {\n      id: 'evt_' + (NOW - i * 1234).toString(36),\n      ts: NOW - i * (12 + (i * 7) % 40) * SEC,\n      topic: t.topic,\n      skill: t.skill,\n      stepId: 'stp_' + (0xb000 + i * 41).toString(16),\n      status: t.status,\n    };\n  }",
+      "fmtRel": "const fmtRel = (ts) => {\n    const d = NOW - ts;\n    if (d < 60 * SEC) return Math.max(1, Math.round(d / SEC)) + 's ago';\n    if (d < 60 * MIN) return Math.round(d / MIN) + 'm ago';\n    if (d < 24 * HR)  return Math.round(d / HR) + 'h ago';\n    return Math.round(d / DAY) + 'd ago';\n  }",
       "fmtTime": "const fmtTime = (ts) => {\n    const d = new Date(ts);\n    const hh = String(d.getHours()).padStart(2, '0');\n    const mm = String(d.getMinutes()).padStart(2, '0');\n    const ss = String(d.getSeconds()).padStart(2, '0');\n    return hh + ':' + mm + ':' + ss;\n  }"
     }
   }
@@ -418,8 +418,8 @@ MOCK_BINDINGS: dict = {
     }
   },
   "helpers": {
-    "fmtRel": "const fmtRel = (ts) => {\n    const d = NOW - ts;\n    if (d < 60 * SEC) return Math.max(1, Math.round(d / SEC)) + 's ago';\n    if (d < 60 * MIN) return Math.round(d / MIN) + 'm ago';\n    if (d < 24 * HR)  return Math.round(d / HR) + 'h ago';\n    return Math.round(d / DAY) + 'd ago';\n  }",
     "makeEvent": "const makeEvent = (i) => {\n    const t = EVT_TEMPLATES[i % EVT_TEMPLATES.length];\n    return {\n      id: 'evt_' + (NOW - i * 1234).toString(36),\n      ts: NOW - i * (12 + (i * 7) % 40) * SEC,\n      topic: t.topic,\n      skill: t.skill,\n      stepId: 'stp_' + (0xb000 + i * 41).toString(16),\n      status: t.status,\n    };\n  }",
+    "fmtRel": "const fmtRel = (ts) => {\n    const d = NOW - ts;\n    if (d < 60 * SEC) return Math.max(1, Math.round(d / SEC)) + 's ago';\n    if (d < 60 * MIN) return Math.round(d / MIN) + 'm ago';\n    if (d < 24 * HR)  return Math.round(d / HR) + 'h ago';\n    return Math.round(d / DAY) + 'd ago';\n  }",
     "fmtTime": "const fmtTime = (ts) => {\n    const d = new Date(ts);\n    const hh = String(d.getHours()).padStart(2, '0');\n    const mm = String(d.getMinutes()).padStart(2, '0');\n    const ss = String(d.getSeconds()).padStart(2, '0');\n    return hh + ':' + mm + ':' + ss;\n  }"
   }
 }
