@@ -3,7 +3,7 @@
 Do not hand-edit unless you're willing to take ownership — the next
 compose run will overwrite this file.
 
-AURACLE_EMIT_VERSION:iter37 — see compose.py _is_stale_compose for the
+AURACLE_EMIT_VERSION:iter38 — see compose.py _is_stale_compose for the
 short-circuit-bypass marker. Bump when emit_server's contract changes
 in a way that requires already-composed product repos to be re-emitted.
 """
@@ -39,7 +39,7 @@ ROUTES: list[dict] = [
       "KPIS.p0_incidents_24h.delta": {
         "adapter": "static_value",
         "args": {
-          "value": ""
+          "value": 0
         }
       },
       "KPIS.p0_incidents_24h.spark": {
@@ -54,13 +54,12 @@ ROUTES: list[dict] = [
         "args": {
           "topic": "factory.incident",
           "hours": 24
-        },
-        "postprocess": "to_int"
+        }
       },
       "KPIS.deploys_24h.delta": {
         "adapter": "static_value",
         "args": {
-          "value": ""
+          "value": 0
         }
       },
       "KPIS.deploys_24h.spark": {
@@ -73,7 +72,7 @@ ROUTES: list[dict] = [
       "KPIS.intents_24h.delta": {
         "adapter": "static_value",
         "args": {
-          "value": ""
+          "value": 0
         }
       },
       "KPIS.intents_24h.spark": {
@@ -86,88 +85,115 @@ ROUTES: list[dict] = [
       "KPIS.services_up.delta": {
         "adapter": "static_value",
         "args": {
-          "value": ""
+          "value": 0
         }
       },
       "KPIS.services_up.spark": {
-        "adapter": "bq_topic_sparkline",
+        "adapter": "static_value",
         "args": {
-          "topic": "factory.tasks",
-          "hours": 24
+          "value": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
         }
       },
       "KPIS.services_up.total": {
         "adapter": "cloudrun_services_count",
-        "args": {},
-        "postprocess": "to_int"
+        "args": {}
       },
       "KPIS.deploys_24h.val": {
         "adapter": "bq_count_by_topic",
         "args": {
           "topic": "factory.deploy",
           "hours": 24
-        },
-        "postprocess": "to_int"
+        }
       },
       "KPIS.intents_24h.val": {
         "adapter": "bq_count_by_topic",
         "args": {
           "topic": "factory.tasks",
           "hours": 24
-        },
-        "postprocess": "to_int"
+        }
       },
       "KPIS.services_up.val": {
         "adapter": "cloudrun_services_count",
-        "args": {},
-        "postprocess": "to_int"
+        "args": {}
       },
       "MEMORY_ENTRIES[]": {
-        "adapter": "static_value",
+        "adapter": "memory_bank_recall",
         "args": {
-          "value": None
+          "scope": "",
+          "limit": 20
+        },
+        "shape_map": {
+          "id": "memory_id",
+          "scope": "scope",
+          "content": "content_preview"
         }
       },
       "NEW_SKILLS[].id": {
         "adapter": "static_value",
         "args": {
-          "value": None
+          "value": []
         }
       },
       "SEARCH_ITEMS": {
         "adapter": "static_value",
         "args": {
-          "value": None
+          "value": []
         }
       },
       "THREADS[].id": {
         "adapter": "static_value",
         "args": {
-          "value": None
+          "value": []
         }
       },
       "AGENTS[].id": {
-        "adapter": "static_value",
-        "args": {
-          "value": None
+        "adapter": "cloudrun_services_list",
+        "args": {},
+        "shape_map": {
+          "id": "name",
+          "name": "name",
+          "status": "terminal_condition_state"
         }
       },
       "INFLIGHT": {
-        "adapter": "static_value",
+        "adapter": "bq_inflight_steps",
         "args": {
-          "value": None
+          "limit": 10
         }
       },
       "PROJECTS": {
-        "adapter": "static_value",
-        "args": {
-          "value": None
-        }
+        "adapter": "project_registry_list",
+        "args": {}
       },
       "TOPICS[]": {
         "adapter": "static_value",
         "args": {
-          "value": None
+          "value": []
         }
       },
       "fmtTime": {
@@ -177,27 +203,28 @@ ROUTES: list[dict] = [
         }
       },
       "EVENTS": {
-        "adapter": "static_value",
+        "adapter": "bq_recent_events",
         "args": {
-          "value": None
+          "limit": 50,
+          "hours": 24
         }
       },
       "MEMORY": {
         "adapter": "static_value",
         "args": {
-          "value": None
+          "value": {}
         }
       },
       "RETROS": {
         "adapter": "static_value",
         "args": {
-          "value": None
+          "value": []
         }
       },
       "SKILLS": {
         "adapter": "static_value",
         "args": {
-          "value": None
+          "value": []
         }
       },
       "fmtRel": {
@@ -209,20 +236,20 @@ ROUTES: list[dict] = [
       "CHAT": {
         "adapter": "static_value",
         "args": {
-          "value": None
+          "value": []
         }
       },
       "NOW": {
         "adapter": "static_value",
         "args": {
-          "value": None
+          "value": 1716000000000
         }
       }
     },
     "helpers": {
-      "makeEvent": "const makeEvent = (i) => {\n    const t = EVT_TEMPLATES[i % EVT_TEMPLATES.length];\n    return {\n      id: 'evt_' + (NOW - i * 1234).toString(36),\n      ts: NOW - i * (12 + (i * 7) % 40) * SEC,\n      topic: t.topic,\n      skill: t.skill,\n      stepId: 'stp_' + (0xb000 + i * 41).toString(16),\n      status: t.status,\n    };\n  }",
       "fmtRel": "const fmtRel = (ts) => {\n    const d = NOW - ts;\n    if (d < 60 * SEC) return Math.max(1, Math.round(d / SEC)) + 's ago';\n    if (d < 60 * MIN) return Math.round(d / MIN) + 'm ago';\n    if (d < 24 * HR)  return Math.round(d / HR) + 'h ago';\n    return Math.round(d / DAY) + 'd ago';\n  }",
-      "fmtTime": "const fmtTime = (ts) => {\n    const d = new Date(ts);\n    const hh = String(d.getHours()).padStart(2, '0');\n    const mm = String(d.getMinutes()).padStart(2, '0');\n    const ss = String(d.getSeconds()).padStart(2, '0');\n    return hh + ':' + mm + ':' + ss;\n  }"
+      "fmtTime": "const fmtTime = (ts) => {\n    const d = new Date(ts);\n    const hh = String(d.getHours()).padStart(2, '0');\n    const mm = String(d.getMinutes()).padStart(2, '0');\n    const ss = String(d.getSeconds()).padStart(2, '0');\n    return hh + ':' + mm + ':' + ss;\n  }",
+      "makeEvent": "const makeEvent = (i) => {\n    const t = EVT_TEMPLATES[i % EVT_TEMPLATES.length];\n    return {\n      id: 'evt_' + (NOW - i * 1234).toString(36),\n      ts: NOW - i * (12 + (i * 7) % 40) * SEC,\n      topic: t.topic,\n      skill: t.skill,\n      stepId: 'stp_' + (0xb000 + i * 41).toString(16),\n      status: t.status,\n    };\n  }"
     }
   }
 ]
@@ -237,7 +264,7 @@ MOCK_BINDINGS: dict = {
     "KPIS.p0_incidents_24h.delta": {
       "adapter": "static_value",
       "args": {
-        "value": ""
+        "value": 0
       }
     },
     "KPIS.p0_incidents_24h.spark": {
@@ -252,13 +279,12 @@ MOCK_BINDINGS: dict = {
       "args": {
         "topic": "factory.incident",
         "hours": 24
-      },
-      "postprocess": "to_int"
+      }
     },
     "KPIS.deploys_24h.delta": {
       "adapter": "static_value",
       "args": {
-        "value": ""
+        "value": 0
       }
     },
     "KPIS.deploys_24h.spark": {
@@ -271,7 +297,7 @@ MOCK_BINDINGS: dict = {
     "KPIS.intents_24h.delta": {
       "adapter": "static_value",
       "args": {
-        "value": ""
+        "value": 0
       }
     },
     "KPIS.intents_24h.spark": {
@@ -284,88 +310,115 @@ MOCK_BINDINGS: dict = {
     "KPIS.services_up.delta": {
       "adapter": "static_value",
       "args": {
-        "value": ""
+        "value": 0
       }
     },
     "KPIS.services_up.spark": {
-      "adapter": "bq_topic_sparkline",
+      "adapter": "static_value",
       "args": {
-        "topic": "factory.tasks",
-        "hours": 24
+        "value": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
       }
     },
     "KPIS.services_up.total": {
       "adapter": "cloudrun_services_count",
-      "args": {},
-      "postprocess": "to_int"
+      "args": {}
     },
     "KPIS.deploys_24h.val": {
       "adapter": "bq_count_by_topic",
       "args": {
         "topic": "factory.deploy",
         "hours": 24
-      },
-      "postprocess": "to_int"
+      }
     },
     "KPIS.intents_24h.val": {
       "adapter": "bq_count_by_topic",
       "args": {
         "topic": "factory.tasks",
         "hours": 24
-      },
-      "postprocess": "to_int"
+      }
     },
     "KPIS.services_up.val": {
       "adapter": "cloudrun_services_count",
-      "args": {},
-      "postprocess": "to_int"
+      "args": {}
     },
     "MEMORY_ENTRIES[]": {
-      "adapter": "static_value",
+      "adapter": "memory_bank_recall",
       "args": {
-        "value": None
+        "scope": "",
+        "limit": 20
+      },
+      "shape_map": {
+        "id": "memory_id",
+        "scope": "scope",
+        "content": "content_preview"
       }
     },
     "NEW_SKILLS[].id": {
       "adapter": "static_value",
       "args": {
-        "value": None
+        "value": []
       }
     },
     "SEARCH_ITEMS": {
       "adapter": "static_value",
       "args": {
-        "value": None
+        "value": []
       }
     },
     "THREADS[].id": {
       "adapter": "static_value",
       "args": {
-        "value": None
+        "value": []
       }
     },
     "AGENTS[].id": {
-      "adapter": "static_value",
-      "args": {
-        "value": None
+      "adapter": "cloudrun_services_list",
+      "args": {},
+      "shape_map": {
+        "id": "name",
+        "name": "name",
+        "status": "terminal_condition_state"
       }
     },
     "INFLIGHT": {
-      "adapter": "static_value",
+      "adapter": "bq_inflight_steps",
       "args": {
-        "value": None
+        "limit": 10
       }
     },
     "PROJECTS": {
-      "adapter": "static_value",
-      "args": {
-        "value": None
-      }
+      "adapter": "project_registry_list",
+      "args": {}
     },
     "TOPICS[]": {
       "adapter": "static_value",
       "args": {
-        "value": None
+        "value": []
       }
     },
     "fmtTime": {
@@ -375,27 +428,28 @@ MOCK_BINDINGS: dict = {
       }
     },
     "EVENTS": {
-      "adapter": "static_value",
+      "adapter": "bq_recent_events",
       "args": {
-        "value": None
+        "limit": 50,
+        "hours": 24
       }
     },
     "MEMORY": {
       "adapter": "static_value",
       "args": {
-        "value": None
+        "value": {}
       }
     },
     "RETROS": {
       "adapter": "static_value",
       "args": {
-        "value": None
+        "value": []
       }
     },
     "SKILLS": {
       "adapter": "static_value",
       "args": {
-        "value": None
+        "value": []
       }
     },
     "fmtRel": {
@@ -407,20 +461,20 @@ MOCK_BINDINGS: dict = {
     "CHAT": {
       "adapter": "static_value",
       "args": {
-        "value": None
+        "value": []
       }
     },
     "NOW": {
       "adapter": "static_value",
       "args": {
-        "value": None
+        "value": 1716000000000
       }
     }
   },
   "helpers": {
-    "makeEvent": "const makeEvent = (i) => {\n    const t = EVT_TEMPLATES[i % EVT_TEMPLATES.length];\n    return {\n      id: 'evt_' + (NOW - i * 1234).toString(36),\n      ts: NOW - i * (12 + (i * 7) % 40) * SEC,\n      topic: t.topic,\n      skill: t.skill,\n      stepId: 'stp_' + (0xb000 + i * 41).toString(16),\n      status: t.status,\n    };\n  }",
     "fmtRel": "const fmtRel = (ts) => {\n    const d = NOW - ts;\n    if (d < 60 * SEC) return Math.max(1, Math.round(d / SEC)) + 's ago';\n    if (d < 60 * MIN) return Math.round(d / MIN) + 'm ago';\n    if (d < 24 * HR)  return Math.round(d / HR) + 'h ago';\n    return Math.round(d / DAY) + 'd ago';\n  }",
-    "fmtTime": "const fmtTime = (ts) => {\n    const d = new Date(ts);\n    const hh = String(d.getHours()).padStart(2, '0');\n    const mm = String(d.getMinutes()).padStart(2, '0');\n    const ss = String(d.getSeconds()).padStart(2, '0');\n    return hh + ':' + mm + ':' + ss;\n  }"
+    "fmtTime": "const fmtTime = (ts) => {\n    const d = new Date(ts);\n    const hh = String(d.getHours()).padStart(2, '0');\n    const mm = String(d.getMinutes()).padStart(2, '0');\n    const ss = String(d.getSeconds()).padStart(2, '0');\n    return hh + ':' + mm + ':' + ss;\n  }",
+    "makeEvent": "const makeEvent = (i) => {\n    const t = EVT_TEMPLATES[i % EVT_TEMPLATES.length];\n    return {\n      id: 'evt_' + (NOW - i * 1234).toString(36),\n      ts: NOW - i * (12 + (i * 7) % 40) * SEC,\n      topic: t.topic,\n      skill: t.skill,\n      stepId: 'stp_' + (0xb000 + i * 41).toString(16),\n      status: t.status,\n    };\n  }"
   }
 }
 
