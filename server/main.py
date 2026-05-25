@@ -3,7 +3,7 @@
 Do not hand-edit unless you're willing to take ownership — the next
 compose run will overwrite this file.
 
-AURACLE_EMIT_VERSION:iter34 — see compose.py _is_stale_compose for the
+AURACLE_EMIT_VERSION:iter35 — see compose.py _is_stale_compose for the
 short-circuit-bypass marker. Bump when emit_server's contract changes
 in a way that requires already-composed product repos to be re-emitted.
 """
@@ -220,9 +220,9 @@ ROUTES: list[dict] = [
       }
     },
     "helpers": {
+      "makeEvent": "const makeEvent = (i) => {\n    const t = EVT_TEMPLATES[i % EVT_TEMPLATES.length];\n    return {\n      id: 'evt_' + (NOW - i * 1234).toString(36),\n      ts: NOW - i * (12 + (i * 7) % 40) * SEC,\n      topic: t.topic,\n      skill: t.skill,\n      stepId: 'stp_' + (0xb000 + i * 41).toString(16),\n      status: t.status,\n    };\n  }",
       "fmtRel": "const fmtRel = (ts) => {\n    const d = NOW - ts;\n    if (d < 60 * SEC) return Math.max(1, Math.round(d / SEC)) + 's ago';\n    if (d < 60 * MIN) return Math.round(d / MIN) + 'm ago';\n    if (d < 24 * HR)  return Math.round(d / HR) + 'h ago';\n    return Math.round(d / DAY) + 'd ago';\n  }",
-      "fmtTime": "const fmtTime = (ts) => {\n    const d = new Date(ts);\n    const hh = String(d.getHours()).padStart(2, '0');\n    const mm = String(d.getMinutes()).padStart(2, '0');\n    const ss = String(d.getSeconds()).padStart(2, '0');\n    return hh + ':' + mm + ':' + ss;\n  }",
-      "makeEvent": "const makeEvent = (i) => {\n    const t = EVT_TEMPLATES[i % EVT_TEMPLATES.length];\n    return {\n      id: 'evt_' + (NOW - i * 1234).toString(36),\n      ts: NOW - i * (12 + (i * 7) % 40) * SEC,\n      topic: t.topic,\n      skill: t.skill,\n      stepId: 'stp_' + (0xb000 + i * 41).toString(16),\n      status: t.status,\n    };\n  }"
+      "fmtTime": "const fmtTime = (ts) => {\n    const d = new Date(ts);\n    const hh = String(d.getHours()).padStart(2, '0');\n    const mm = String(d.getMinutes()).padStart(2, '0');\n    const ss = String(d.getSeconds()).padStart(2, '0');\n    return hh + ':' + mm + ':' + ss;\n  }"
     }
   }
 ]
@@ -418,9 +418,9 @@ MOCK_BINDINGS: dict = {
     }
   },
   "helpers": {
+    "makeEvent": "const makeEvent = (i) => {\n    const t = EVT_TEMPLATES[i % EVT_TEMPLATES.length];\n    return {\n      id: 'evt_' + (NOW - i * 1234).toString(36),\n      ts: NOW - i * (12 + (i * 7) % 40) * SEC,\n      topic: t.topic,\n      skill: t.skill,\n      stepId: 'stp_' + (0xb000 + i * 41).toString(16),\n      status: t.status,\n    };\n  }",
     "fmtRel": "const fmtRel = (ts) => {\n    const d = NOW - ts;\n    if (d < 60 * SEC) return Math.max(1, Math.round(d / SEC)) + 's ago';\n    if (d < 60 * MIN) return Math.round(d / MIN) + 'm ago';\n    if (d < 24 * HR)  return Math.round(d / HR) + 'h ago';\n    return Math.round(d / DAY) + 'd ago';\n  }",
-    "fmtTime": "const fmtTime = (ts) => {\n    const d = new Date(ts);\n    const hh = String(d.getHours()).padStart(2, '0');\n    const mm = String(d.getMinutes()).padStart(2, '0');\n    const ss = String(d.getSeconds()).padStart(2, '0');\n    return hh + ':' + mm + ':' + ss;\n  }",
-    "makeEvent": "const makeEvent = (i) => {\n    const t = EVT_TEMPLATES[i % EVT_TEMPLATES.length];\n    return {\n      id: 'evt_' + (NOW - i * 1234).toString(36),\n      ts: NOW - i * (12 + (i * 7) % 40) * SEC,\n      topic: t.topic,\n      skill: t.skill,\n      stepId: 'stp_' + (0xb000 + i * 41).toString(16),\n      status: t.status,\n    };\n  }"
+    "fmtTime": "const fmtTime = (ts) => {\n    const d = new Date(ts);\n    const hh = String(d.getHours()).padStart(2, '0');\n    const mm = String(d.getMinutes()).padStart(2, '0');\n    const ss = String(d.getSeconds()).padStart(2, '0');\n    return hh + ':' + mm + ':' + ss;\n  }"
   }
 }
 
@@ -440,7 +440,8 @@ async def _cached(key: str, fn: Any, *args: Any, **kwargs: Any) -> Any:
 
 async def _dispatch(binding: dict) -> Any:
     fn = getattr(adapters, binding["adapter"])
-    return await fn(**binding.get("args", {}))
+    raw = await fn(**binding.get("args", {}))
+    return _apply_shape_map(raw, binding.get("shape_map"))
 
 
 def _post(value: Any, kind: str | None) -> Any:
@@ -475,6 +476,54 @@ def _set_leaf(target: dict, path: str, value: Any) -> None:
     cur[key] = value
 
 
+def _resolve_field(source: Any, expr: str) -> Any:
+    """Resolve a shape_map value expression against a source dict.
+
+    Forms:
+      "name"            pluck source["name"]
+      "a.b.c"           nested pluck source["a"]["b"]["c"]
+      "=<json-literal>" literal (parsed as JSON: "='x'", "=42", "=null", "=true")
+      "=<bare-string>"  fallback: literal string after the equals sign
+    """
+    if not isinstance(expr, str):
+        return expr
+    if expr.startswith("="):
+        body = expr[1:]
+        try:
+            return json.loads(body)
+        except (ValueError, TypeError):
+            # Accept JS-style single-quoted strings ('active') as a
+            # convenience — Gemini emits these often.
+            if len(body) >= 2 and body[0] == body[-1] and body[0] in ("'", '"'):
+                return body[1:-1]
+            return body
+    if not isinstance(source, dict):
+        return None
+    cur: Any = source
+    for part in expr.split("."):
+        if isinstance(cur, dict):
+            cur = cur.get(part)
+        else:
+            return None
+    return cur
+
+
+def _apply_shape_map(raw: Any, shape_map: dict | None) -> Any:
+    """Transform `raw` into the consumer's expected shape.
+
+    If `shape_map` is falsy, return raw unchanged.
+    If raw is a list, apply shape_map per item.
+    Otherwise treat raw as a single object and apply once.
+    """
+    if not shape_map or not isinstance(shape_map, dict):
+        return raw
+    def _one(item: Any) -> dict:
+        return {k: _resolve_field(item, v) for k, v in shape_map.items()}
+    if isinstance(raw, list):
+        return [_one(it) for it in raw]
+    return _one(raw)
+
+
 def _make_handler(binding: dict) -> Any:
     async def _handler(request: web.Request) -> web.Response:
         try:
@@ -503,7 +552,11 @@ def _make_leaves_handler(binding: dict) -> Any:
         out: dict = {}
         for lk, result in zip(leaf_keys, raw):
             leaf = leaves[lk]
-            _set_leaf(out, lk, _post(result, leaf.get("postprocess")))
+            shaped = _apply_shape_map(
+                _post(result, leaf.get("postprocess")),
+                leaf.get("shape_map"),
+            )
+            _set_leaf(out, lk, shaped)
         return web.json_response(out)
     return _handler
 
@@ -658,7 +711,8 @@ def _make_mock_key_handler(top_key: str) -> Any:
             try:
                 fn = getattr(adapters, cfg["adapter"])
                 val = await fn(**cfg.get("args", {}))
-                return _post(val, cfg.get("postprocess"))
+                val = _post(val, cfg.get("postprocess"))
+                return _apply_shape_map(val, cfg.get("shape_map"))
             except Exception as exc:
                 log.warning("mock-key %s leaf %s adapter %s failed: %s",
                             top_key, lk, cfg.get("adapter"), exc)
